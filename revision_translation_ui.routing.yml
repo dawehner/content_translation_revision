@@ -1,0 +1,10 @@
+entity.node.revision_translation:
+  path: '/node/{node}/revision-translations'
+  defaults:
+    _title: 'Revision translations'
+    _controller: '\Drupal\revision_translation_ui\Controller\NodeController::revisionOverview'
+  requirements:
+    _access_node_revision: 'view'
+    node: \d+
+  options:
+    _node_operation_route: TRUE
