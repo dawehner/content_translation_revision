@@ -2,14 +2,17 @@
 
 namespace Drupal\content_translation_revision\Controller;
 
+use Drupal\Component\Utility\Xss;
 use Drupal\content_translation\ContentTranslationManagerInterface;
 use Drupal\Core\Cache\CacheableMetadata;
 use Drupal\Core\Controller\ControllerBase;
+use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Language\LanguageInterface;
+use Drupal\Core\Link;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Url;
-use Drupal\node\NodeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class ContentTranslationRevisionController extends ControllerBase {
@@ -22,230 +25,374 @@ class ContentTranslationRevisionController extends ControllerBase {
   protected $manager;
 
   /**
+   * The date formatter service.
+   *
+   * @var \Drupal\Core\Datetime\DateFormatterInterface
+   */
+  protected $dateFormatter;
+
+  /**
    * Initializes a content translation controller.
    *
    * @param \Drupal\content_translation\ContentTranslationManagerInterface $manager
    *   A content translation manager instance.
+   * @param \Drupal\Core\Datetime\DateFormatterInterface $date_formatter
+   *   The date formatter service.
    */
-  public function __construct(ContentTranslationManagerInterface $manager) {
+  public function __construct(ContentTranslationManagerInterface $manager, DateFormatterInterface $date_formatter) {
     $this->manager = $manager;
+    $this->dateFormatter = $date_formatter;
   }
 
   /**
    * {@inheritdoc}
    */
   public static function create(ContainerInterface $container) {
-    return new static($container->get('content_translation.manager'));
+    return new static(
+      $container->get('content_translation.manager'),
+      $container->get('date.formatter')
+    );
   }
 
-  public function revisionOverview(NodeInterface $node) {
-    // Get all revisions for this node.
-    $node_storage = $this->entityTypeManager()->getStorage('node');
-    $revision_ids = $node_storage->getQuery()
-      ->allRevisions()
-      // @fixme There seems to be a lot of issues with access checking on
-      //   revision queries.
-      ->accessCheck(FALSE)
-      ->condition('nid', $node->id())
-      ->sort('revision_timestamp', 'DESC')
-      ->execute();
-    $revision_entities = array_map(function ($revision_id) use ($node_storage) {
-      return $node_storage->loadRevision($revision_id);
-    }, array_keys($revision_ids));
+  public function revisionOverview(RouteMatchInterface $route_match, $entity_type_id = NULL) {
+    /** @var \Drupal\Core\Entity\ContentEntityInterface|\Drupal\Core\Entity\RevisionLogInterface $entity */
+    $entity = $route_match->getParameter($entity_type_id);
 
-    $languages = $this->languageManager()->getLanguages();
-    $items = array_map(function (NodeInterface $revision) use ($languages) {
-      $item = [];
-      $item[] = ['#markup' => \Drupal::service('date.formatter')->format($revision->getRevisionCreationTime())];
-      $item[] = ['#markup' => $revision->label()];
+    $header = [
+      $this->t('Version'),
+      $this->t('Operations'),
+    ];
 
-      $entity_type = $revision->getEntityType();
-      $entity_type_id = $revision->getEntityTypeId();
-      $original = $revision->language()->getId();
-      $entity = $revision;
-      $translations = $entity->getTranslationLanguages();
-      $handler = $this->entityTypeManager()->getHandler($entity_type_id, 'translation');
-      $manager = $this->manager;
+    $entity_storage = $this->entityTypeManager()->getStorage($entity->getEntityTypeId());
+    $revision_entities = $this->loadRevisions($entity, $entity_storage);
 
-      // Determine whether the current entity is translatable.
-      $translatable = FALSE;
-      foreach ($this->entityManager()->getFieldDefinitions($entity_type_id, $entity->bundle()) as $instance) {
-        if ($instance->isTranslatable()) {
-          $translatable = TRUE;
-          break;
-        }
+    $revision_rows = array_map(function (ContentEntityInterface $revision) use ($entity) {
+      /** @var \Drupal\Core\Entity\ContentEntityInterface|\Drupal\Core\Entity\RevisionLogInterface $revision */
+//      $translation = $revision->getTranslation($revision->language()->getId());
+//      $metadata = $this->manager->getTranslationMetadata($translation);
+//      $status = [
+//        'data' => [
+//        '#type' => 'inline_template',
+//        '#template' => '<span class="status">{% if status %}{{ "Published"|t }}{% else %}{{ "Not published"|t }}{% endif %}</span>{% if outdated %} <span class="marker">{{ "outdated"|t }}</span>{% endif %}',
+//        '#context' => [
+//          'status' => $metadata->isPublished(),
+//          'outdated' => $metadata->isOutdated(),
+//        ],
+//        ]
+//      ];
+
+      $username = [
+        '#theme' => 'username',
+        '#account' => $revision->getRevisionUser(),
+      ];
+      $date = $this->dateFormatter->format($revision->getRevisionCreationTime(), 'short');
+      if ($entity->getRevisionId() != $revision->getRevisionId()) {
+        $link = Link::fromTextAndUrl($date, $revision->toUrl('revision'));
+      }
+      else {
+        $link = $entity->toLink($date);
       }
 
-      $item[] = array_map(function (LanguageInterface $language) use ($revision, $entity_type, $entity_type_id, $original, $entity, $translations, $handler, $manager, $translatable) {
-        $cacheability = CacheableMetadata::createFromObject($entity);
-        $result = [
-          [
-            '#markup' => $language->getName(),
+      /** @var \Drupal\Core\Render\RendererInterface $renderer */
+      $renderer = \Drupal::service('renderer');
+      $revision_message = [
+        '#markup' => $revision->getRevisionLogMessage(),
+        '#allowed_tags' => Xss::getHtmlTagList()
+      ];
+      $link_renderable = $link->toRenderable();
+      $column = [
+        'data' => [
+          '#type' => 'inline_template',
+          '#template' => '{% trans %}{{ date }} by {{ username }}{% endtrans %}{% if message %}<p class="revision-log">{{ message }}</p>{% endif %}',
+          '#context' => [
+            'date' => $renderer->renderPlain($link_renderable),
+            'username' => $renderer->renderPlain($username),
+            'message' => $renderer->renderPlain($revision_message),
           ],
-        ];
+        ],
+      ];
 
-        $language_name = $language->getName();
-        $langcode = $language->getId();
-
-        $add_url = new Url(
-          "entity.$entity_type_id.content_translation_revision_add",
-          array(
-            'source' => $original,
-            'target' => $language->getId(),
-            $entity_type_id => $entity->id(),
-            $entity_type_id . '_revision' => $entity->getRevisionId(),
-          ),
-          array(
-            'language' => $language,
-          )
-        );
-        $edit_url = new Url(
-          "entity.$entity_type_id.content_translation_revision_edit",
-          array(
-            'language' => $language->getId(),
-            $entity_type_id => $entity->id(),
-            $entity_type_id . '_revision' => $entity->getRevisionId(),
-          ),
-          array(
-            'language' => $language,
-          )
-        );
-//        $delete_url = new Url(
-//          "entity.$entity_type_id.content_translation_delete",
-//          array(
-//            'language' => $language->getId(),
-//            $entity_type_id => $entity->id(),
-//          ),
-//          array(
-//            'language' => $language,
-//          )
-//        );
-        $operations = array(
-          'data' => array(
-            '#type' => 'operations',
-            '#links' => array(),
-          ),
-        );
-
-        $links = &$operations['data']['#links'];
-        if (array_key_exists($langcode, $translations)) {
-          // Existing translation in the translation set: display status.
-          $translation = $entity->getTranslation($langcode);
-          $metadata = $manager->getTranslationMetadata($translation);
-          $source = $metadata->getSource() ?: LanguageInterface::LANGCODE_NOT_SPECIFIED;
-          $is_original = $langcode == $original;
-          $label = $entity->getTranslation($langcode)->label();
-          $link = isset($links->links[$langcode]['url']) ? $links->links[$langcode] : array('url' => $entity->urlInfo());
-          if (!empty($link['url'])) {
-            $link['url']->setOption('language', $language);
-            $row_title = $this->l($label, $link['url']);
-          }
-
-          if (empty($link['url'])) {
-            $row_title = $is_original ? $label : $this->t('n/a');
-          }
-
-          // If the user is allowed to edit the entity we point the edit link to
-          // the entity form, otherwise if we are not dealing with the original
-          // language we point the link to the translation form.
-          $update_access = $entity->access('update', NULL, TRUE);
-          $translation_access = $handler->getTranslationAccess($entity, 'update');
-          $cacheability = $cacheability
-            ->merge(CacheableMetadata::createFromObject($update_access))
-            ->merge(CacheableMetadata::createFromObject($translation_access));
-          if ($update_access->isAllowed() && $entity_type->hasLinkTemplate('edit-form')) {
-            $links['edit']['url'] = $entity->urlInfo('edit-form');
-            $links['edit']['language'] = $language;
-          }
-          elseif (!$is_original && $translation_access->isAllowed()) {
-            $links['edit']['url'] = $edit_url;
-          }
-
-          if (isset($links['edit'])) {
-            $links['edit']['title'] = $this->t('Edit');
-          }
-          $status = array('data' => array(
-            '#type' => 'inline_template',
-            '#template' => '<span class="status">{% if status %}{{ "Published"|t }}{% else %}{{ "Not published"|t }}{% endif %}</span>{% if outdated %} <span class="marker">{{ "outdated"|t }}</span>{% endif %}',
-            '#context' => array(
-              'status' => $metadata->isPublished(),
-              'outdated' => $metadata->isOutdated(),
-            ),
-          ));
-
-//          if ($is_original) {
-//            $language_name = $this->t('<strong>@language_name (Original language)</strong>', array('@language_name' => $language_name));
-//            $source_name = $this->t('n/a');
-//          }
-//          else {
-//            $source_name = isset($languages[$source]) ? $languages[$source]->getName() : $this->t('n/a');
-//            $delete_access = $entity->access('delete', NULL, TRUE);
-//            $translation_access = $handler->getTranslationAccess($entity, 'delete');
-//            $cacheability = $cacheability
-//              ->merge(CacheableMetadata::createFromObject($delete_access))
-//              ->merge(CacheableMetadata::createFromObject($translation_access));
-//            if ($entity->access('delete') && $entity_type->hasLinkTemplate('delete-form')) {
-//              $links['delete'] = array(
-//                'title' => $this->t('Delete'),
-//                'url' => $entity->urlInfo('delete-form'),
-//                'language' => $language,
-//              );
-//            }
-//            elseif ($translation_access->isAllowed()) {
-//              $links['delete'] = array(
-//                'title' => $this->t('Delete'),
-//                'url' => $delete_url,
-//              );
-//            }
-//          }
-        }
-        else {
-          // No such translation in the set yet: help user to create it.
-          $row_title = $source_name = $this->t('n/a');
-          $source = $entity->language()->getId();
-
-          $create_translation_access = $handler->getTranslationAccess($entity, 'create');
-          $cacheability = $cacheability
-            ->merge(CacheableMetadata::createFromObject($create_translation_access));
-          if ($source != $langcode && $create_translation_access->isAllowed()) {
-            if ($translatable) {
-              $links['add'] = array(
-                'title' => $this->t('Add'),
-                'url' => $add_url,
-              );
-            }
-          }
-
-          $status = $this->t('Not translated');
-        }
-//        if ($show_source_column) {
-//          $rows[] = array(
-//            $language_name,
-//            $row_title,
-//            $source_name,
-//            $status,
-//            $operations,
-//          );
-//        }
-//        else {
-//          $rows[] = array($language_name, $row_title, $status, $operations);
-//        }
-        $result[] = ['#markup' => $row_title];
-        $result[] = $operations;
-
-        return $result;
-      }, $languages);
-
+      $operations = $this->revisionOperations($revision, $entity);
       return [
-        'value' => $item,
+        $column,
+        ['data' => $operations],
       ];
     }, $revision_entities);
 
-    return [
-      '#theme' => 'item_list',
-      '#title' => $this->t('Revision translations'),
-      '#items' => $items,
+    $translation_tables = array_map([$this, 'singleTranslationTable'], $revision_entities);
+
+    $rows = [];
+    foreach (array_keys($revision_rows) as $revision_id) {
+      $rows[] = $revision_rows[$revision_id];
+      // @todo Add colspan properly.
+      $rows[] = [['colspan' => 2, 'data' => $translation_tables[$revision_id]]];
+    }
+
+    $build['content_translation_revision_overview'] = [
+      '#theme' => 'table',
+      '#header' => $header,
+      '#rows' => $rows,
     ];
+
+    return $build;
+  }
+
+  protected function revisionOperations(ContentEntityInterface $revision, ContentEntityInterface $entity) {
+    $entity_type_id = $entity->getEntityTypeId();
+    $account = $this->currentUser();
+    $bundle = $revision->bundle();
+    $vid = $revision->getRevisionId();
+    $langcode = $entity->language()->getId();
+    $languages = $entity->getTranslationLanguages();
+    $has_translations = (count($languages) > 1);
+
+    $revert_permission = (($account->hasPermission("revert $bundle revisions") || $account->hasPermission('revert all revisions') || $account->hasPermission('administer nodes')) && $entity->access('update'));
+    $delete_permission = (($account->hasPermission("delete $bundle revisions") || $account->hasPermission('delete all revisions') || $account->hasPermission('administer nodes')) && $entity->access('delete'));
+
+    $links = [];
+    if ($revert_permission) {
+      $links['revert'] = [
+        'title' => $vid != $entity->getRevisionId() ? $this->t('Revert') : $this->t('Set as current revision'),
+        'url' => $has_translations ?
+          Url::fromRoute("$entity_type_id.revision_revert_translation_confirm", [$entity_type_id => $entity->id(), $entity_type_id . '_revision' => $vid, 'langcode' => $langcode]) :
+          Url::fromRoute("$entity_type_id.revision_revert_confirm", [$entity_type_id => $entity->id(), $entity_type_id . '_revision' => $vid]),
+      ];
+    }
+
+    if ($delete_permission) {
+      $links['delete'] = [
+        'title' => $this->t('Delete'),
+        'url' => Url::fromRoute('node.revision_delete_confirm', [$entity_type_id => $entity->id(), $entity_type_id . '_revision' => $vid]),
+      ];
+    }
+
+    return [
+      '#type' => 'operations',
+      '#links' => $links,
+    ];
+  }
+
+  protected function singleTranslationTable(ContentEntityInterface $revision) {
+    $entity_type = $revision->getEntityType();
+    $entity_type_id = $revision->getEntityTypeId();
+    $entity = $this->entityTypeManager()->getStorage($entity_type_id)->load($revision->id());
+
+    $original = $revision->language()->getId();
+    $translations = $revision->getTranslationLanguages();
+    $handler = $this->entityTypeManager()->getHandler($entity_type_id, 'translation');
+    $manager = $this->manager;
+    $languages = $this->languageManager()->getLanguages();
+
+    // Start collecting the cacheability metadata, starting with the entity and
+    // later merge in the access result cacheability metadata.
+    $cacheability = CacheableMetadata::createFromObject($entity);
+
+    // Show source-language column if there are non-original source langcodes.
+    $additional_source_langcodes = array_filter(array_keys($translations), function ($langcode) use ($entity, $original, $manager) {
+      $source = $manager->getTranslationMetadata($entity->getTranslation($langcode))->getSource();
+      return $source != $original && $source != LanguageInterface::LANGCODE_NOT_SPECIFIED;
+    });
+    $show_source_column = !empty($additional_source_langcodes);
+
+    // Determine whether the current entity is translatable.
+    $translatable = FALSE;
+    foreach ($this->entityManager()->getFieldDefinitions($entity_type_id, $entity->bundle()) as $instance) {
+      if ($instance->isTranslatable()) {
+        $translatable = TRUE;
+        break;
+      }
+    }
+
+    $translation_rows = array_map(function (LanguageInterface $language) use ($revision, $entity_type, $entity_type_id, $original, $entity, $translations, $handler, $manager, $translatable, &$cacheability, $show_source_column) {
+      $cacheability = CacheableMetadata::createFromObject($entity);
+
+      $language_name = $language->getName();
+      $langcode = $language->getId();
+
+      $add_url = new Url(
+        "entity.$entity_type_id.content_translation_revision_add",
+        [
+          'source' => $original,
+          'target' => $language->getId(),
+          $entity_type_id => $revision->id(),
+          $entity_type_id . '_revision' => $revision->getRevisionId(),
+        ],
+        [
+          'language' => $language,
+        ]
+      );
+      $edit_url = new Url(
+        "entity.$entity_type_id.content_translation_revision_edit",
+        [
+          'language' => $language->getId(),
+          $entity_type_id => $revision->id(),
+          $entity_type_id . '_revision' => $revision->getRevisionId(),
+        ],
+        [
+          'language' => $language,
+        ]
+      );
+//        $delete_url = new Url(
+//          "entity.$entity_type_id.content_translation_delete",
+//          [
+//            'language' => $language->getId(),
+//            $entity_type_id => $entity->id(),
+//          ],
+//          [
+//            'language' => $language,
+//          ]
+//        );
+      $operations = [
+        'data' => [
+          '#type' => 'operations',
+          '#links' => [],
+        ],
+      ];
+
+      $links = &$operations['data']['#links'];
+      if (array_key_exists($langcode, $translations)) {
+        // Existing translation in the translation set: display status.
+        $translation = $revision->getTranslation($langcode);
+        $metadata = $manager->getTranslationMetadata($translation);
+        $source = $metadata->getSource() ?: LanguageInterface::LANGCODE_NOT_SPECIFIED;
+        $is_original = $langcode == $original;
+        $label = $revision->getTranslation($langcode)->label();
+        $link = isset($links->links[$langcode]['url']) ? $links->links[$langcode] : ['url' => $revision->toUrl()];
+        if (!empty($link['url'])) {
+          $link['url']->setOption('language', $language);
+          $row_title = $this->l($label, $link['url']);
+        }
+
+        if (empty($link['url'])) {
+          $row_title = $is_original ? $label : $this->t('n/a');
+        }
+
+        // If the user is allowed to edit the entity we point the edit link to
+        // the entity form, otherwise if we are not dealing with the original
+        // language we point the link to the translation form.
+        $update_access = $revision->access('update', NULL, TRUE);
+        $translation_access = $handler->getTranslationAccess($revision, 'update');
+        $cacheability = $cacheability
+          ->merge(CacheableMetadata::createFromObject($update_access))
+          ->merge(CacheableMetadata::createFromObject($translation_access));
+        if ($update_access->isAllowed() && $entity_type->hasLinkTemplate('edit-form')) {
+          $links['edit']['url'] = $revision->urlInfo('edit-form');
+          $links['edit']['language'] = $language;
+        }
+        elseif (!$is_original && $translation_access->isAllowed()) {
+          $links['edit']['url'] = $edit_url;
+        }
+
+        if (isset($links['edit'])) {
+          $links['edit']['title'] = $this->t('Edit');
+        }
+        $status = [
+          'data' => [
+          '#type' => 'inline_template',
+          '#template' => '<span class="status">{% if status %}{{ "Published"|t }}{% else %}{{ "Not published"|t }}{% endif %}</span>{% if outdated %} <span class="marker">{{ "outdated"|t }}</span>{% endif %}',
+          '#context' => [
+            'status' => $metadata->isPublished(),
+            'outdated' => $metadata->isOutdated(),
+          ],
+          ]
+        ];
+
+        if ($is_original) {
+          $language_name = $this->t('<strong>@language_name (Original language)</strong>', ['@language_name' => $language_name]);
+          $source_name = $this->t('n/a');
+        }
+        else {
+          $source_name = isset($languages[$source]) ? $languages[$source]->getName() : $this->t('n/a');
+          $delete_access = $entity->access('delete', NULL, TRUE);
+          $translation_access = $handler->getTranslationAccess($entity, 'delete');
+          $cacheability = $cacheability
+            ->merge(CacheableMetadata::createFromObject($delete_access))
+            ->merge(CacheableMetadata::createFromObject($translation_access));
+//          if ($entity->access('delete') && $entity_type->hasLinkTemplate('delete-form')) {
+//            $links['delete'] = [
+//              'title' => $this->t('Delete'),
+//              'url' => $entity->urlInfo('delete-form'),
+//              'language' => $language,
+//            ];
+//          }
+//          elseif ($translation_access->isAllowed()) {
+//            $links['delete'] = [
+//              'title' => $this->t('Delete'),
+//              'url' => $delete_url,
+//            ];
+//          }
+        }
+      }
+      else {
+        // No such translation in the set yet: help user to create it.
+        $row_title = $source_name = $this->t('n/a');
+        $source = $revision->language()->getId();
+
+        $create_translation_access = $handler->getTranslationAccess($revision, 'create');
+        $cacheability = $cacheability
+          ->merge(CacheableMetadata::createFromObject($create_translation_access));
+        if ($source != $langcode && $create_translation_access->isAllowed()) {
+          if ($translatable) {
+            $links['add'] = [
+              'title' => $this->t('Add'),
+              'url' => $add_url,
+            ];
+          }
+        }
+
+        $status = ['#markup' => $this->t('Not translated')];
+      }
+
+      $single_translation_row = [];
+      $single_translation_row[] = [
+        'data' => [
+          '#markup' => $language_name,
+        ],
+      ];
+
+      if ($show_source_column) {
+        $single_translation_row = ['data' => ['#markup' => $source_name]];
+      }
+
+      $single_translation_row[] = ['data' => ['#markup' => $row_title]];
+      $single_translation_row[] = ['data' => $status];
+      $single_translation_row[] = ['data' => $operations];
+
+      return $single_translation_row;
+    }, $languages);
+
+    if ($show_source_column) {
+      $header = [
+        $this->t('Language'),
+        $this->t('Translation'),
+        $this->t('Source language'),
+        $this->t('Status'),
+        $this->t('Operations'),
+      ];
+    }
+    else {
+      $header = [
+        $this->t('Language'),
+        $this->t('Translation'),
+        $this->t('Status'),
+        $this->t('Operations'),
+      ];
+    }
+
+    // Add metadata to the build render array to let other modules know about
+    // which entity this is.
+    $build['#entity'] = $entity;
+    $cacheability
+      ->addCacheTags($entity->getCacheTags())
+      ->applyTo($build);
+
+    $build['content_translation_overview'] = [
+      '#theme' => 'table',
+      '#header' => $header,
+      '#rows' => $translation_rows,
+    ];
+
+    return $build;
   }
 
   /**
@@ -343,6 +490,27 @@ class ContentTranslationRevisionController extends ControllerBase {
     $form_state_additions['content_translation']['translation_form'] = TRUE;
 
     return $this->entityFormBuilder()->getForm($entity, $operation, $form_state_additions);
+  }
+
+  /**
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   * @param $entity_storage
+   *
+   * @return \Drupal\Core\Entity\ContentEntityInterface[]
+   */
+  protected function loadRevisions(ContentEntityInterface $entity, EntityStorageInterface $entity_storage) {
+    $revision_ids = array_keys($entity_storage->getQuery()
+      ->allRevisions()
+      // @fixme There seems to be a lot of issues with access checking on
+      //   revision queries.
+      ->accessCheck(FALSE)
+      ->condition($entity->getEntityType()->getKey('id'), $entity->id())
+      ->sort('revision_timestamp', 'DESC')
+      ->execute());
+    $revision_entities = array_map(function ($revision_id) use ($entity_storage) {
+      return $entity_storage->loadRevision($revision_id);
+    }, $revision_ids);
+    return array_combine($revision_ids, $revision_entities);
   }
 
 }
