@@ -22,6 +22,9 @@ class UiTest extends BrowserTestBase {
    */
   protected $editorUser;
 
+  public function test() {
+  }
+
   /**
    * {@inheritdoc}
    */
