@@ -1,5 +1,0 @@
-entity.node.revision_translation:
-  route_name: entity.node.revision_translation
-  base_route: entity.node.canonical
-  title: 'Revision translation'
-  weight: 20

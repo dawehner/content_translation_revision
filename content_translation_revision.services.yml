@@ -1,0 +1,6 @@
+services:
+  content_translation_revision.subscriber:
+    class: \Drupal\content_translation_revision\Routing\ContentTranslationRouteSubscriber
+    arguments: ['@content_translation.manager']
+    tags:
+      - { name: event_subscriber }

@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\Tests\revision_translation_ui\Kernel;
+namespace Drupal\Tests\content_translation_revision\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\language\Entity\ConfigurableLanguage;
@@ -14,7 +14,7 @@ use Drupal\node\Entity\NodeType;
  * Note: THis test is mostly about checking out the API layer.
  *
  *
- * @group revision_translation_ui
+ * @group content_translation_revision
  */
 class CoreApiTest extends KernelTestBase {
 
