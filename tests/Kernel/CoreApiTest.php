@@ -96,5 +96,4 @@ class CoreApiTest extends KernelTestBase {
     $this->assertEquals('fr-name--1', $published_entity->getTranslation('fr')->label());
   }
 
-
 }

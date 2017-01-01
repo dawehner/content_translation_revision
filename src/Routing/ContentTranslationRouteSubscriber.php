@@ -140,30 +140,30 @@ class ContentTranslationRouteSubscriber extends RouteSubscriberBase {
       );
       $collection->add("entity.$entity_type_id.content_translation_revision_edit", $route);
 
-//      $route = new Route(
-//        $path . '/delete/{language}',
-//        array(
-//          '_entity_form' => $entity_type_id . '.content_translation_deletion',
-//          'language' => NULL,
-//          '_title' => 'Delete',
-//          'entity_type_id' => $entity_type_id,
-//        ),
-//        array(
-//          '_access_content_translation_manage' => 'delete',
-//        ),
-//        array(
-//          'parameters' => array(
-//            'language' => array(
-//              'type' => 'language',
-//            ),
-//            $entity_type_id => array(
-//              'type' => 'entity:' . $entity_type_id,
-//            ),
-//          ),
-//          '_admin_route' => $is_admin,
-//        )
-//      );
-//      $collection->add("entity.$entity_type_id.content_translation_delete", $route);
+      //      $route = new Route(
+      //        $path . '/delete/{language}',
+      //        array(
+      //          '_entity_form' => $entity_type_id . '.content_translation_deletion',
+      //          'language' => NULL,
+      //          '_title' => 'Delete',
+      //          'entity_type_id' => $entity_type_id,
+      //        ),
+      //        array(
+      //          '_access_content_translation_manage' => 'delete',
+      //        ),
+      //        array(
+      //          'parameters' => array(
+      //            'language' => array(
+      //              'type' => 'language',
+      //            ),
+      //            $entity_type_id => array(
+      //              'type' => 'entity:' . $entity_type_id,
+      //            ),
+      //          ),
+      //          '_admin_route' => $is_admin,
+      //        )
+      //      );
+      //      $collection->add("entity.$entity_type_id.content_translation_delete", $route);
     }
   }
 

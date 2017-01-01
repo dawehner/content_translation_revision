@@ -68,18 +68,18 @@ class ContentTranslationRevisionController extends ControllerBase {
 
     $revision_rows = array_map(function (ContentEntityInterface $revision) use ($entity) {
       /** @var \Drupal\Core\Entity\ContentEntityInterface|\Drupal\Core\Entity\RevisionLogInterface $revision */
-//      $translation = $revision->getTranslation($revision->language()->getId());
-//      $metadata = $this->manager->getTranslationMetadata($translation);
-//      $status = [
-//        'data' => [
-//        '#type' => 'inline_template',
-//        '#template' => '<span class="status">{% if status %}{{ "Published"|t }}{% else %}{{ "Not published"|t }}{% endif %}</span>{% if outdated %} <span class="marker">{{ "outdated"|t }}</span>{% endif %}',
-//        '#context' => [
-//          'status' => $metadata->isPublished(),
-//          'outdated' => $metadata->isOutdated(),
-//        ],
-//        ]
-//      ];
+      //      $translation = $revision->getTranslation($revision->language()->getId());
+      //      $metadata = $this->manager->getTranslationMetadata($translation);
+      //      $status = [
+      //        'data' => [
+      //        '#type' => 'inline_template',
+      //        '#template' => '<span class="status">{% if status %}{{ "Published"|t }}{% else %}{{ "Not published"|t }}{% endif %}</span>{% if outdated %} <span class="marker">{{ "outdated"|t }}</span>{% endif %}',
+      //        '#context' => [
+      //          'status' => $metadata->isPublished(),
+      //          'outdated' => $metadata->isOutdated(),
+      //        ],
+      //        ]
+      //      ];
 
       $username = [
         '#theme' => 'username',
@@ -232,16 +232,16 @@ class ContentTranslationRevisionController extends ControllerBase {
           'language' => $language,
         ]
       );
-//        $delete_url = new Url(
-//          "entity.$entity_type_id.content_translation_delete",
-//          [
-//            'language' => $language->getId(),
-//            $entity_type_id => $entity->id(),
-//          ],
-//          [
-//            'language' => $language,
-//          ]
-//        );
+      //        $delete_url = new Url(
+      //          "entity.$entity_type_id.content_translation_delete",
+      //          [
+      //            'language' => $language->getId(),
+      //            $entity_type_id => $entity->id(),
+      //          ],
+      //          [
+      //            'language' => $language,
+      //          ]
+      //        );
       $operations = [
         'data' => [
           '#type' => 'operations',
@@ -308,19 +308,19 @@ class ContentTranslationRevisionController extends ControllerBase {
           $cacheability = $cacheability
             ->merge(CacheableMetadata::createFromObject($delete_access))
             ->merge(CacheableMetadata::createFromObject($translation_access));
-//          if ($entity->access('delete') && $entity_type->hasLinkTemplate('delete-form')) {
-//            $links['delete'] = [
-//              'title' => $this->t('Delete'),
-//              'url' => $entity->urlInfo('delete-form'),
-//              'language' => $language,
-//            ];
-//          }
-//          elseif ($translation_access->isAllowed()) {
-//            $links['delete'] = [
-//              'title' => $this->t('Delete'),
-//              'url' => $delete_url,
-//            ];
-//          }
+          //          if ($entity->access('delete') && $entity_type->hasLinkTemplate('delete-form')) {
+          //            $links['delete'] = [
+          //              'title' => $this->t('Delete'),
+          //              'url' => $entity->urlInfo('delete-form'),
+          //              'language' => $language,
+          //            ];
+          //          }
+          //          elseif ($translation_access->isAllowed()) {
+          //            $links['delete'] = [
+          //              'title' => $this->t('Delete'),
+          //              'url' => $delete_url,
+          //            ];
+          //          }
         }
       }
       else {
