@@ -448,6 +448,9 @@ class ContentTranslationRevisionController extends ControllerBase {
     $source_translation = $entity->getTranslation($source->getId());
     $target_translation = $entity->addTranslation($target->getId(), $source_translation->toArray());
 
+    // Ensure to NOT create a new revision, we really just translate.
+    $entity->setNewRevision(FALSE);
+
     // Make sure we do not inherit the affected status from the source values.
     if ($entity->getEntityType()->isRevisionable()) {
       $target_translation->setRevisionTranslationAffected(NULL);
