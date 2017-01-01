@@ -11,7 +11,7 @@ use Drupal\node\Entity\NodeType;
 /**
  * Tests the core API for revision translations.
  *
- * Note: THis test is mostly about checking out the API layer.
+ * Note: This test is mostly about checking out the API layer.
  *
  * @group content_translation_revision
  */
@@ -31,6 +31,7 @@ class CoreApiTest extends KernelTestBase {
     ConfigurableLanguage::createFromLangcode('fr')->save();
     $this->container->get('kernel')->rebuildContainer();
 
+    /** @var \Drupal\node\NodeTypeInterface $node_type */
     $node_type = NodeType::create([
       'type' => 'article',
       'name' => 'Article',
@@ -61,6 +62,7 @@ class CoreApiTest extends KernelTestBase {
       'title' => 'en-name--0',
       'moderation_state' => ['target_id' => 'draft'],
     ]);
+    $this->assertCount(0, $entity->validate());
     $entity->save();
     $entity_rev_id = $entity->getRevisionId();
 
@@ -68,6 +70,7 @@ class CoreApiTest extends KernelTestBase {
     $entity_fr = $entity->addTranslation('fr');
     $entity_fr->setNewRevision(FALSE);
     $entity_fr->get('title')->value = 'fr-name--0';
+    $this->assertCount(0, $entity_fr->validate());
     $entity_fr->save();
     $entity_fr_rev_id = $entity_fr->getRevisionId();
 
@@ -75,6 +78,7 @@ class CoreApiTest extends KernelTestBase {
     $entity_rev1->setNewRevision(TRUE);
     $entity_rev1->get('title')->value = 'en-name--1';
     $entity_rev1->get('moderation_state')->target_id = 'published';
+    $this->assertCount(0, $entity_rev1->validate());
     $entity_rev1->save();
     $entity_rev1_rev_id = $entity_rev1->getRevisionId();
 
@@ -82,6 +86,7 @@ class CoreApiTest extends KernelTestBase {
     $entity_fr_rev1->setNewRevision(TRUE);
     $entity_fr_rev1->get('title')->value = 'fr-name--1';
     $entity_fr_rev1->get('moderation_state')->target_id = 'published';
+    $this->assertCount(0, $entity_fr_rev1->validate());
     $entity_fr_rev1->save();
     $entity_fr_rev1_rev_id = $entity_fr_rev1->getRevisionId();
 
