@@ -13,7 +13,6 @@ use Drupal\node\Entity\NodeType;
  *
  * Note: THis test is mostly about checking out the API layer.
  *
- *
  * @group content_translation_revision
  */
 class CoreApiTest extends KernelTestBase {
@@ -21,7 +20,7 @@ class CoreApiTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'user', 'content_moderation', 'language', 'system'];
+  public static $modules = ['node', 'user', 'workbench_moderation', 'language', 'system'];
 
   /**
    * {@inheritdoc}
@@ -36,9 +35,9 @@ class CoreApiTest extends KernelTestBase {
       'type' => 'article',
       'name' => 'Article',
     ]);
-    $node_type->setThirdPartySetting('content_moderation', 'enabled', TRUE);
-    $node_type->setThirdPartySetting('content_moderation', 'allowed_moderation_states', ['draft', 'published']);
-    $node_type->setThirdPartySetting('content_moderation', 'default_moderation_state', 'draft');
+    $node_type->setThirdPartySetting('workbench_moderation', 'enabled', TRUE);
+    $node_type->setThirdPartySetting('workbench_moderation', 'allowed_moderation_states', ['draft', 'published']);
+    $node_type->setThirdPartySetting('workbench_moderation', 'default_moderation_state', 'draft');
 
     $node_type->save();
 
@@ -52,8 +51,7 @@ class CoreApiTest extends KernelTestBase {
     $this->installSchema('node', 'node_access');
     $this->installEntitySchema('node');
     $this->installEntitySchema('user');
-    $this->installEntitySchema('content_moderation_state');
-    $this->installConfig('content_moderation');
+    $this->installConfig('workbench_moderation');
   }
 
   public function testApi() {
@@ -68,6 +66,7 @@ class CoreApiTest extends KernelTestBase {
 
     $entity = clone $entity;
     $entity_fr = $entity->addTranslation('fr');
+    $entity_fr->setNewRevision(FALSE);
     $entity_fr->get('title')->value = 'fr-name--0';
     $entity_fr->save();
     $entity_fr_rev_id = $entity_fr->getRevisionId();
