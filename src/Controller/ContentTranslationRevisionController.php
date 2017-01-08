@@ -11,10 +11,14 @@ use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\Core\Entity\EntityStorageInterface;
 use Drupal\Core\Language\LanguageInterface;
 use Drupal\Core\Link;
+use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
+/**
+ * Controller for the content translation revision UI.
+ */
 class ContentTranslationRevisionController extends ControllerBase {
 
   /**
@@ -32,16 +36,26 @@ class ContentTranslationRevisionController extends ControllerBase {
   protected $dateFormatter;
 
   /**
+   * The renderer.
+   *
+   * @var \Drupal\Core\Render\RendererInterface
+   */
+  protected $renderer;
+
+  /**
    * Initializes a content translation controller.
    *
    * @param \Drupal\content_translation\ContentTranslationManagerInterface $manager
    *   A content translation manager instance.
    * @param \Drupal\Core\Datetime\DateFormatterInterface $date_formatter
    *   The date formatter service.
+   * @param \Drupal\Core\Render\RendererInterface $renderer
+   *   The renderer.
    */
-  public function __construct(ContentTranslationManagerInterface $manager, DateFormatterInterface $date_formatter) {
+  public function __construct(ContentTranslationManagerInterface $manager, DateFormatterInterface $date_formatter, RendererInterface $renderer) {
     $this->manager = $manager;
     $this->dateFormatter = $date_formatter;
+    $this->renderer = $renderer;
   }
 
   /**
@@ -50,10 +64,22 @@ class ContentTranslationRevisionController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('content_translation.manager'),
-      $container->get('date.formatter')
+      $container->get('date.formatter'),
+      $container->get('renderer')
     );
   }
 
+  /**
+   * Provides a list of revisions and translations.
+   *
+   * @param \Drupal\Core\Routing\RouteMatchInterface $route_match
+   *   The route match.
+   * @param string $entity_type_id
+   *   The entity type ID.
+   *
+   * @return array
+   *   The render array.
+   */
   public function revisionOverview(RouteMatchInterface $route_match, $entity_type_id = NULL) {
     /** @var \Drupal\Core\Entity\ContentEntityInterface|\Drupal\Core\Entity\RevisionLogInterface $entity */
     $entity = $route_match->getParameter($entity_type_id);
@@ -63,12 +89,15 @@ class ContentTranslationRevisionController extends ControllerBase {
       $this->t('Operations'),
     ];
 
-    $entity_storage = $this->entityTypeManager()->getStorage($entity->getEntityTypeId());
+    $entity_storage = $this->entityTypeManager()
+      ->getStorage($entity->getEntityTypeId());
     $revision_entities = $this->loadRevisions($entity, $entity_storage);
 
     $revision_rows = array_map(function (ContentEntityInterface $revision) use ($entity) {
       /** @var \Drupal\Core\Entity\ContentEntityInterface|\Drupal\Core\Entity\RevisionLogInterface $revision */
-      //      $translation = $revision->getTranslation($revision->language()->getId());
+
+      // @codingStandardsIgnoreStart
+      // $translation = $revision->getTranslation($revision->language()->getId());
       //      $metadata = $this->manager->getTranslationMetadata($translation);
       //      $status = [
       //        'data' => [
@@ -80,7 +109,7 @@ class ContentTranslationRevisionController extends ControllerBase {
       //        ],
       //        ]
       //      ];
-
+      // @codingStandardsIgnoreEnd
       $username = [
         '#theme' => 'username',
         '#account' => $revision->getRevisionUser(),
@@ -94,10 +123,10 @@ class ContentTranslationRevisionController extends ControllerBase {
       }
 
       /** @var \Drupal\Core\Render\RendererInterface $renderer */
-      $renderer = \Drupal::service('renderer');
+      $renderer = $this->renderer;
       $revision_message = [
         '#markup' => $revision->getRevisionLogMessage(),
-        '#allowed_tags' => Xss::getHtmlTagList()
+        '#allowed_tags' => Xss::getHtmlTagList(),
       ];
       $link_renderable = $link->toRenderable();
       $column = [
@@ -119,13 +148,18 @@ class ContentTranslationRevisionController extends ControllerBase {
       ];
     }, $revision_entities);
 
-    $translation_tables = array_map([$this, 'singleTranslationTable'], $revision_entities);
+    $translation_tables = array_map([
+      $this,
+      'singleTranslationTable',
+    ], $revision_entities);
 
     $rows = [];
     foreach (array_keys($revision_rows) as $revision_id) {
       $rows[] = $revision_rows[$revision_id];
       // @todo Add colspan properly.
-      $rows[] = [['colspan' => 2, 'data' => $translation_tables[$revision_id]]];
+      $rows[] = [
+        ['colspan' => 2, 'data' => $translation_tables[$revision_id]],
+      ];
     }
 
     $build['content_translation_revision_overview'] = [
@@ -137,6 +171,17 @@ class ContentTranslationRevisionController extends ControllerBase {
     return $build;
   }
 
+  /**
+   * Returns available operations for a given revision.
+   *
+   * @param \Drupal\Core\Entity\ContentEntityInterface $revision
+   *   The revision.
+   * @param \Drupal\Core\Entity\ContentEntityInterface $entity
+   *   The default version of the entity.
+   *
+   * @return array
+   *   The possible operations.
+   */
   protected function revisionOperations(ContentEntityInterface $revision, ContentEntityInterface $entity) {
     $entity_type_id = $entity->getEntityTypeId();
     $account = $this->currentUser();
@@ -151,18 +196,29 @@ class ContentTranslationRevisionController extends ControllerBase {
 
     $links = [];
     if ($revert_permission) {
+      $url = $has_translations ?
+        Url::fromRoute("$entity_type_id.revision_revert_translation_confirm", [
+          $entity_type_id => $entity->id(),
+          $entity_type_id . '_revision' => $vid,
+          'langcode' => $langcode,
+        ]) :
+        Url::fromRoute("$entity_type_id.revision_revert_confirm", [
+          $entity_type_id => $entity->id(),
+          $entity_type_id . '_revision' => $vid,
+        ]);
       $links['revert'] = [
         'title' => $vid != $entity->getRevisionId() ? $this->t('Revert') : $this->t('Set as current revision'),
-        'url' => $has_translations ?
-          Url::fromRoute("$entity_type_id.revision_revert_translation_confirm", [$entity_type_id => $entity->id(), $entity_type_id . '_revision' => $vid, 'langcode' => $langcode]) :
-          Url::fromRoute("$entity_type_id.revision_revert_confirm", [$entity_type_id => $entity->id(), $entity_type_id . '_revision' => $vid]),
+        'url' => $url,
       ];
     }
 
     if ($delete_permission) {
       $links['delete'] = [
         'title' => $this->t('Delete'),
-        'url' => Url::fromRoute('node.revision_delete_confirm', [$entity_type_id => $entity->id(), $entity_type_id . '_revision' => $vid]),
+        'url' => Url::fromRoute('node.revision_delete_confirm', [
+          $entity_type_id => $entity->id(),
+          $entity_type_id . '_revision' => $vid,
+        ]),
       ];
     }
 
@@ -172,14 +228,26 @@ class ContentTranslationRevisionController extends ControllerBase {
     ];
   }
 
+  /**
+   * Returns a table with translations for a single revision.
+   *
+   * @param \Drupal\Core\Entity\ContentEntityInterface $revision
+   *   The revision.
+   *
+   * @return array
+   *   The render array.
+   */
   protected function singleTranslationTable(ContentEntityInterface $revision) {
     $entity_type = $revision->getEntityType();
     $entity_type_id = $revision->getEntityTypeId();
-    $entity = $this->entityTypeManager()->getStorage($entity_type_id)->load($revision->id());
+    $entity = $this->entityTypeManager()
+      ->getStorage($entity_type_id)
+      ->load($revision->id());
 
     $original = $revision->language()->getId();
     $translations = $revision->getTranslationLanguages();
-    $handler = $this->entityTypeManager()->getHandler($entity_type_id, 'translation');
+    $handler = $this->entityTypeManager()
+      ->getHandler($entity_type_id, 'translation');
     $manager = $this->manager;
     $languages = $this->languageManager()->getLanguages();
 
@@ -189,21 +257,23 @@ class ContentTranslationRevisionController extends ControllerBase {
 
     // Show source-language column if there are non-original source langcodes.
     $additional_source_langcodes = array_filter(array_keys($translations), function ($langcode) use ($entity, $original, $manager) {
-      $source = $manager->getTranslationMetadata($entity->getTranslation($langcode))->getSource();
+      $source = $manager->getTranslationMetadata($entity->getTranslation($langcode))
+        ->getSource();
       return $source != $original && $source != LanguageInterface::LANGCODE_NOT_SPECIFIED;
     });
     $show_source_column = !empty($additional_source_langcodes);
 
     // Determine whether the current entity is translatable.
     $translatable = FALSE;
-    foreach ($this->entityManager()->getFieldDefinitions($entity_type_id, $entity->bundle()) as $instance) {
+    foreach ($this->entityManager()
+               ->getFieldDefinitions($entity_type_id, $entity->bundle()) as $instance) {
       if ($instance->isTranslatable()) {
         $translatable = TRUE;
         break;
       }
     }
 
-    $translation_rows = array_map(function (LanguageInterface $language) use ($revision, $entity_type, $entity_type_id, $original, $entity, $translations, $handler, $manager, $translatable, &$cacheability, $show_source_column) {
+    $translation_rows = array_map(function (LanguageInterface $language) use ($revision, $entity_type, $entity_type_id, $original, $entity, $translations, $handler, $manager, $translatable, &$cacheability, $show_source_column, $languages) {
       $cacheability = CacheableMetadata::createFromObject($entity);
 
       $language_name = $language->getName();
@@ -232,7 +302,8 @@ class ContentTranslationRevisionController extends ControllerBase {
           'language' => $language,
         ]
       );
-      //        $delete_url = new Url(
+      // @codingStandardsIgnoreStart
+      // $delete_url = new Url(
       //          "entity.$entity_type_id.content_translation_delete",
       //          [
       //            'language' => $language->getId(),
@@ -241,7 +312,8 @@ class ContentTranslationRevisionController extends ControllerBase {
       //          [
       //            'language' => $language,
       //          ]
-      //        );
+      //        );.
+      // @codingStandardsIgnoreEnd
       $operations = [
         'data' => [
           '#type' => 'operations',
@@ -288,13 +360,13 @@ class ContentTranslationRevisionController extends ControllerBase {
         }
         $status = [
           'data' => [
-          '#type' => 'inline_template',
-          '#template' => '<span class="status">{% if status %}{{ "Published"|t }}{% else %}{{ "Not published"|t }}{% endif %}</span>{% if outdated %} <span class="marker">{{ "outdated"|t }}</span>{% endif %}',
-          '#context' => [
-            'status' => $metadata->isPublished(),
-            'outdated' => $metadata->isOutdated(),
+            '#type' => 'inline_template',
+            '#template' => '<span class="status">{% if status %}{{ "Published"|t }}{% else %}{{ "Not published"|t }}{% endif %}</span>{% if outdated %} <span class="marker">{{ "outdated"|t }}</span>{% endif %}',
+            '#context' => [
+              'status' => $metadata->isPublished(),
+              'outdated' => $metadata->isOutdated(),
+            ],
           ],
-          ]
         ];
 
         if ($is_original) {
@@ -308,7 +380,8 @@ class ContentTranslationRevisionController extends ControllerBase {
           $cacheability = $cacheability
             ->merge(CacheableMetadata::createFromObject($delete_access))
             ->merge(CacheableMetadata::createFromObject($translation_access));
-          //          if ($entity->access('delete') && $entity_type->hasLinkTemplate('delete-form')) {
+          // @codingStandardsIgnoreStart
+          // If ($entity->access('delete') && $entity_type->hasLinkTemplate('delete-form')) {
           //            $links['delete'] = [
           //              'title' => $this->t('Delete'),
           //              'url' => $entity->urlInfo('delete-form'),
@@ -320,7 +393,8 @@ class ContentTranslationRevisionController extends ControllerBase {
           //              'title' => $this->t('Delete'),
           //              'url' => $delete_url,
           //            ];
-          //          }
+          //          }.
+          // @codingStandardsIgnoreEnd
         }
       }
       else {
@@ -420,8 +494,10 @@ class ContentTranslationRevisionController extends ControllerBase {
     $this->prepareTranslation($entity, $source, $target);
 
     // @todo Provide a way to figure out the default form operation. Maybe like
+    // @codingStandardsIgnoreStart
     //   $operation = isset($info['default_operation']) ? $info['default_operation'] : 'default';
     //   See https://www.drupal.org/node/2006348.
+    // @codingStandardsIgnoreEnd
     $operation = 'default';
 
     $form_state_additions = [];
@@ -430,7 +506,8 @@ class ContentTranslationRevisionController extends ControllerBase {
     $form_state_additions['content_translation']['target'] = $target;
     $form_state_additions['content_translation']['translation_form'] = !$entity->access('update');
 
-    return $this->entityFormBuilder()->getForm($entity, $operation, $form_state_additions);
+    return $this->entityFormBuilder()
+      ->getForm($entity, $operation, $form_state_additions);
   }
 
   /**
@@ -458,7 +535,9 @@ class ContentTranslationRevisionController extends ControllerBase {
     }
 
     /** @var \Drupal\user\UserInterface $user */
-    $user = $this->entityTypeManager()->getStorage('user')->load($this->currentUser()->id());
+    $user = $this->entityTypeManager()
+      ->getStorage('user')
+      ->load($this->currentUser()->id());
     $metadata = $this->manager->getTranslationMetadata($target_translation);
 
     // Update the translation author to current user, as well the translation
@@ -484,29 +563,37 @@ class ContentTranslationRevisionController extends ControllerBase {
   public function edit(LanguageInterface $language, RouteMatchInterface $route_match, $entity_type_id = NULL) {
     $entity = $route_match->getParameter($entity_type_id . '_revision');
 
+    // @codingStandardsIgnoreStart
     // @todo Provide a way to figure out the default form operation. Maybe like
     //   $operation = isset($info['default_operation']) ? $info['default_operation'] : 'default';
     //   See https://www.drupal.org/node/2006348.
+    // @codingStandardsIgnoreEnd
     $operation = 'default';
 
     $form_state_additions = [];
     $form_state_additions['langcode'] = $language->getId();
     $form_state_additions['content_translation']['translation_form'] = TRUE;
 
-    return $this->entityFormBuilder()->getForm($entity, $operation, $form_state_additions);
+    return $this->entityFormBuilder()
+      ->getForm($entity, $operation, $form_state_additions);
   }
 
   /**
+   * Loads all revisions for a given entity.
+   *
    * @param \Drupal\Core\Entity\ContentEntityInterface $entity
-   * @param $entity_storage
+   *   The entity.
+   * @param \Drupal\Core\Entity\EntityStorageInterface $entity_storage
+   *   The entity storage.
    *
    * @return \Drupal\Core\Entity\ContentEntityInterface[]
+   *   Returns all revisions.
    */
   protected function loadRevisions(ContentEntityInterface $entity, EntityStorageInterface $entity_storage) {
     $revision_ids = array_keys($entity_storage->getQuery()
       ->allRevisions()
-      // @fixme There seems to be a lot of issues with access checking on
-      //   revision queries.
+      // @FIXME There seems to be a lot of issues with access checking on
+      // revision queries.
       ->accessCheck(FALSE)
       ->condition($entity->getEntityType()->getKey('id'), $entity->id())
       ->sort('revision_timestamp', 'DESC')

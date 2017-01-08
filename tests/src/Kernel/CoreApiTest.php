@@ -20,7 +20,13 @@ class CoreApiTest extends KernelTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'user', 'workbench_moderation', 'language', 'system'];
+  public static $modules = [
+    'node',
+    'user',
+    'workbench_moderation',
+    'language',
+    'system',
+  ];
 
   /**
    * {@inheritdoc}
@@ -56,7 +62,7 @@ class CoreApiTest extends KernelTestBase {
   }
 
   /**
-   *
+   * Tests the Drupal core entity API with revisions and translations.
    */
   public function testApi() {
     $storage = \Drupal::entityTypeManager()->getStorage('node');

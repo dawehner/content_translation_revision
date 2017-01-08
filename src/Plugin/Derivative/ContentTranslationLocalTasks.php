@@ -16,7 +16,7 @@ class ContentTranslationLocalTasks extends DeriverBase implements ContainerDeriv
   use StringTranslationTrait;
 
   /**
-   * The base plugin ID
+   * The base plugin ID.
    *
    * @var string
    */
@@ -71,7 +71,7 @@ class ContentTranslationLocalTasks extends DeriverBase implements ContainerDeriv
         'title' => $this->t('Translate revisions'),
         'route_name' => $translation_route_name,
         'base_route' => $base_route_name,
-        ] + $base_plugin_definition;
+      ] + $base_plugin_definition;
     }
     return parent::getDerivativeDefinitions($base_plugin_definition);
   }

@@ -59,89 +59,90 @@ class ContentTranslationRevisionRouteSubscriber extends RouteSubscriberBase {
 
       $route = new Route(
         $path,
-        array(
+        [
           '_controller' => ContentTranslationRevisionController::class . '::revisionOverview',
           'entity_type_id' => $entity_type_id,
-        ),
-        array(
+        ],
+        [
           '_entity_access' => $entity_type_id . '.view',
           '_access_content_translation_overview' => $entity_type_id,
-        ),
-        array(
-          'parameters' => array(
-            $entity_type_id => array(
+        ],
+        [
+          'parameters' => [
+            $entity_type_id => [
               'type' => 'entity:' . $entity_type_id,
-            ),
-          ),
+            ],
+          ],
           '_admin_route' => $is_admin,
-        )
+        ]
       );
       $route_name = "entity.$entity_type_id.content_translation_revision_overview";
       $collection->add($route_name, $route);
 
       $route = new Route(
         $path . '/{' . $entity_type_id . '_revision}/add/{source}/{target}',
-        array(
+        [
           '_controller' => ContentTranslationRevisionController::class . '::add',
           'source' => NULL,
           'target' => NULL,
           '_title' => 'Add',
           'entity_type_id' => $entity_type_id,
 
-        ),
-        array(
+        ],
+        [
           '_entity_access' => $entity_type_id . '.view',
           '_access_content_translation_manage' => 'create',
-        ),
-        array(
-          'parameters' => array(
-            'source' => array(
+        ],
+        [
+          'parameters' => [
+            'source' => [
               'type' => 'language',
-            ),
-            'target' => array(
+            ],
+            'target' => [
               'type' => 'language',
-            ),
-            $entity_type_id => array(
+            ],
+            $entity_type_id => [
               'type' => 'entity:' . $entity_type_id,
-            ),
-            "{$entity_type_id}_revision" => array(
+            ],
+            "{$entity_type_id}_revision" => [
               'type' => 'entity_revision:' . $entity_type_id,
-            ),
-          ),
+            ],
+          ],
           '_admin_route' => $is_admin,
-        )
+        ]
       );
       $collection->add("entity.$entity_type_id.content_translation_revision_add", $route);
 
       $route = new Route(
         $path . '/{' . $entity_type_id . '_revision}/edit/{language}',
-        array(
+        [
           '_controller' => ContentTranslationRevisionController::class . '::edit',
           'language' => NULL,
           '_title' => 'Edit',
           'entity_type_id' => $entity_type_id,
-        ),
-        array(
+        ],
+        [
           '_access_content_translation_manage' => 'update',
-        ),
-        array(
-          'parameters' => array(
-            'language' => array(
+        ],
+        [
+          'parameters' => [
+            'language' => [
               'type' => 'language',
-            ),
-            $entity_type_id => array(
+            ],
+            $entity_type_id => [
               'type' => 'entity:' . $entity_type_id,
-            ),
-            "{$entity_type_id}_revision" => array(
+            ],
+            "{$entity_type_id}_revision" => [
               'type' => 'entity_revision:' . $entity_type_id,
-            ),
-          ),
+            ],
+          ],
           '_admin_route' => $is_admin,
-        )
+        ]
       );
       $collection->add("entity.$entity_type_id.content_translation_revision_edit", $route);
 
-      //      $route = new Route(
+      // @codingStandardsIgnoreStart
+      // $route = new Route(
       //        $path . '/delete/{language}',
       //        array(
       //          '_entity_form' => $entity_type_id . '.content_translation_deletion',
@@ -164,7 +165,8 @@ class ContentTranslationRevisionRouteSubscriber extends RouteSubscriberBase {
       //          '_admin_route' => $is_admin,
       //        )
       //      );
-      //      $collection->add("entity.$entity_type_id.content_translation_delete", $route);
+      //      $collection->add("entity.$entity_type_id.content_translation_delete", $route);.
+      // @codingStandardsIgnoreEnd
     }
   }
 

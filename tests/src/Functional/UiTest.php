@@ -17,15 +17,21 @@ class UiTest extends BrowserTestBase {
   /**
    * {@inheritdoc}
    */
-  public static $modules = ['node', 'user', 'language', 'system', 'workbench_moderation', 'content_translation'];
+  public static $modules = [
+    'node',
+    'user',
+    'language',
+    'system',
+    'workbench_moderation',
+    'content_translation',
+  ];
 
   /**
+   * The editor user.
+   *
    * @var \Drupal\user\UserInterface
    */
   protected $editorUser;
-
-  public function test() {
-  }
 
   /**
    * {@inheritdoc}
@@ -33,7 +39,7 @@ class UiTest extends BrowserTestBase {
   protected function setUp() {
     parent::setUp();
 
-    // workbench_moderation
+    // workbench_moderation.
     \Drupal::service('theme_installer')->install(['seven']);
     \Drupal::configFactory()
       ->getEditable('system.theme')
@@ -84,6 +90,9 @@ class UiTest extends BrowserTestBase {
     $this->drupalLogin($this->editorUser);
   }
 
+  /**
+   * Tests the UI.
+   */
   public function testUi() {
     $web_assert = $this->assertSession();
 
