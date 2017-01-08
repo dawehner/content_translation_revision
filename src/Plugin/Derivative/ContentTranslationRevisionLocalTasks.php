@@ -12,7 +12,7 @@ use Drupal\Core\StringTranslation\TranslationInterface;
 /**
  * Provides dynamic local tasks for content translation.
  */
-class ContentTranslationLocalTasks extends DeriverBase implements ContainerDeriverInterface {
+class ContentTranslationRevisionLocalTasks extends DeriverBase implements ContainerDeriverInterface {
   use StringTranslationTrait;
 
   /**

@@ -596,7 +596,7 @@ class ContentTranslationRevisionController extends ControllerBase {
       // revision queries.
       ->accessCheck(FALSE)
       ->condition($entity->getEntityType()->getKey('id'), $entity->id())
-      ->sort('revision_timestamp', 'DESC')
+      ->sort($entity->getEntityType()->getKey('revision'), 'DESC')
       ->execute());
     $revision_entities = array_map(function ($revision_id) use ($entity_storage) {
       return $entity_storage->loadRevision($revision_id);
