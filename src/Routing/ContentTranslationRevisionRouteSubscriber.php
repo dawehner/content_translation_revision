@@ -3,6 +3,7 @@
 namespace Drupal\content_translation_revision\Routing;
 
 use Drupal\content_translation\ContentTranslationManagerInterface;
+use Drupal\content_translation_revision\Controller\ContentTranslationRevisionController;
 use Drupal\Core\Routing\RouteSubscriberBase;
 use Drupal\Core\Routing\RoutingEvents;
 use Symfony\Component\Routing\Route;
@@ -11,7 +12,7 @@ use Symfony\Component\Routing\RouteCollection;
 /**
  * Subscriber for entity translation routes.
  */
-class ContentTranslationRouteSubscriber extends RouteSubscriberBase {
+class ContentTranslationRevisionRouteSubscriber extends RouteSubscriberBase {
 
   /**
    * The content translation manager.
@@ -21,7 +22,7 @@ class ContentTranslationRouteSubscriber extends RouteSubscriberBase {
   protected $contentTranslationManager;
 
   /**
-   * Constructs a ContentTranslationRouteSubscriber object.
+   * Constructs a ContentTranslationRevisionRouteSubscriber object.
    *
    * @param \Drupal\content_translation\ContentTranslationManagerInterface $content_translation_manager
    *   The content translation manager.
@@ -59,7 +60,7 @@ class ContentTranslationRouteSubscriber extends RouteSubscriberBase {
       $route = new Route(
         $path,
         array(
-          '_controller' => '\Drupal\content_translation_revision\Controller\ContentTranslationRevisionController::revisionOverview',
+          '_controller' => ContentTranslationRevisionController::class . '::revisionOverview',
           'entity_type_id' => $entity_type_id,
         ),
         array(
@@ -81,7 +82,7 @@ class ContentTranslationRouteSubscriber extends RouteSubscriberBase {
       $route = new Route(
         $path . '/{' . $entity_type_id . '_revision}/add/{source}/{target}',
         array(
-          '_controller' => '\Drupal\content_translation_revision\Controller\ContentTranslationRevisionController::add',
+          '_controller' => ContentTranslationRevisionController::class . '::add',
           'source' => NULL,
           'target' => NULL,
           '_title' => 'Add',
@@ -115,7 +116,7 @@ class ContentTranslationRouteSubscriber extends RouteSubscriberBase {
       $route = new Route(
         $path . '/{' . $entity_type_id . '_revision}/edit/{language}',
         array(
-          '_controller' => '\Drupal\content_translation_revision\Controller\ContentTranslationRevisionController::edit',
+          '_controller' => ContentTranslationRevisionController::class . '::edit',
           'language' => NULL,
           '_title' => 'Edit',
           'entity_type_id' => $entity_type_id,
@@ -174,7 +175,7 @@ class ContentTranslationRouteSubscriber extends RouteSubscriberBase {
     $events = parent::getSubscribedEvents();
     // Should run after AdminRouteSubscriber so the routes can inherit admin
     // status of the edit routes on entities. Therefore priority -210.
-    $events[RoutingEvents::ALTER] = array('onAlterRoutes', -210);
+    $events[RoutingEvents::ALTER] = ['onAlterRoutes', -210];
     return $events;
   }
 
