@@ -55,6 +55,9 @@ class CoreApiTest extends KernelTestBase {
     $this->installConfig('workbench_moderation');
   }
 
+  /**
+   *
+   */
   public function testApi() {
     $storage = \Drupal::entityTypeManager()->getStorage('node');
     $entity = Node::create([
