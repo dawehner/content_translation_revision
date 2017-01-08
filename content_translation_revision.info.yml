@@ -1,3 +1,6 @@
 name: revision translation UI
 core: 8.x
 type: module
+dependencies:
+  - workbench_moderation
+  - content_translation
