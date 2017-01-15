@@ -3,3 +3,40 @@
 /**
  * @file
  */
+use Drupal\content_translation_revision\NodeModerationHandler;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\FieldableEntityInterface;
+use Drupal\node\NodeInterface;
+
+
+/**
+ * Implements hook_entity_presave().
+ *
+ * This hook allows to sync moderation states across translations.
+ */
+function content_translation_revision_entity_presave(EntityInterface $entity) {
+  // Make this behaviour opt in.
+  if (!\Drupal::config('content_translation_revision.settings')->get('sync_moderation_state_translations')) {
+    return;
+  }
+
+  if (!$entity instanceof NodeInterface) {
+    return;
+  }
+
+  if (!$entity instanceof FieldableEntityInterface) {
+    return;
+  }
+
+  if (!$entity->hasField('moderation_state')) {
+    return;
+  }
+
+  $new_moderation_state = $entity->get('moderation_state')->target_id;
+  // Change to the new moderation state across all translations.
+  foreach ($entity->getTranslationLanguages(TRUE) as $language) {
+    if ($entity->hasTranslation($language->getId())) {
+      $entity->getTranslation($language->getId())->get('moderation_state')->target_id = $new_moderation_state;
+    }
+  }
+}

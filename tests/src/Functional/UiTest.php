@@ -490,14 +490,188 @@ class UiTest extends BrowserTestBase {
       file_put_contents('/tmp/foo.txt', $index_key . "\n\n", FILE_APPEND);
       $revision_table = $page->find('xpath', "//div[contains(@class, 'region-content')]/table/tbody/tr[$index_key]");
 
-      $this->assertContains($en_row['title'], $revision_table->find('xpath', '//table[1]/tbody/tr[1]/td[2]')->getHtml());
-      $this->assertContains($en_row['status'], $revision_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
-      $this->assertContains($en_row['operation'], $revision_table->find('xpath', '//table[1]/tbody/tr[1]/td[4]')->getHtml());
+      $this->assertContains($en_row['title'], $revision_table->find('xpath', '//table[1]/tbody/tr[1]/td[2]')->getHtml(), "Index $index");
+      $this->assertContains($en_row['status'], $revision_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml(), "Index $index");
+      $this->assertContains($en_row['operation'], $revision_table->find('xpath', '//table[1]/tbody/tr[1]/td[4]')->getHtml(), "Index $index");
 
-      $this->assertContains($fr_row['title'], $revision_table->find('xpath', '//table[1]/tbody/tr[2]/td[2]')->getHtml());
-      $this->assertContains($fr_row['status'], $revision_table->find('xpath', '//table[1]/tbody/tr[2]/td[3]')->getHtml());
-      $this->assertContains($fr_row['operation'], $revision_table->find('xpath', '//table[1]/tbody/tr[2]/td[4]')->getHtml());
+      $this->assertContains($fr_row['title'], $revision_table->find('xpath', '//table[1]/tbody/tr[2]/td[2]')->getHtml(), "Index $index");
+      $this->assertContains($fr_row['status'], $revision_table->find('xpath', '//table[1]/tbody/tr[2]/td[3]')->getHtml(), "Index $index");
+      $this->assertContains($fr_row['operation'], $revision_table->find('xpath', '//table[1]/tbody/tr[2]/td[4]')->getHtml(), "Index $index");
     }
+  }
+
+  /**
+   * Tests the UI when translated after review and then edited later with sync enabled.
+   */
+  public function testTranslationWorkflowWithEditAndSyncEnabled() {
+    \Drupal::configFactory()->getEditable('content_translation_revision.settings')
+      ->set('sync_moderation_state_translations', TRUE)
+      ->save();
+
+    $this->drupalGet('node/add/article');
+    $this->drupalPostForm('node/add/article', [
+      'title[0][value]' => 'en-name--0',
+    ], 'Save and Create New Draft');
+
+    $this->drupalPostForm('node/1/edit', [
+      'title[0][value]' => 'en-name--1',
+    ], 'Save and Request Review (this translation)');
+
+    $add_translation_url = Url::fromRoute('entity.node.content_translation_revision_add', [
+      'node' => 1,
+      'node_revision' => 2,
+      'source' => 'en',
+      'target' => 'fr',
+    ], ['language' => $this->frLanguage]);
+    $this->drupalPostForm($add_translation_url, [
+      'title[0][value]' => 'fr-name--2',
+    ], 'Save and Publish (this translation)');
+
+    // We have published items now, so we can continue and create new drafts.
+    // At this point the EN and FR entry are separated already.
+
+    $this->drupalPostForm('node/1/edit', [
+      'title[0][value]' => 'en-name--3',
+    ], 'Save and Create New Draft');
+
+    $this->drupalPostForm('node/1/edit', [
+      'title[0][value]' => 'en-name--4',
+    ], 'Save and Request Review (this translation)');
+
+    $this->drupalPostForm('node/1/edit', [
+      'title[0][value]' => 'en-name--5',
+    ], 'Save and Publish (this translation)');
+
+    $this->drupalPostForm(Url::fromRoute('entity.node.edit_form', ['node' => 1], ['language' => $this->frLanguage]), [
+      'title[0][value]' => 'fr-name--3',
+    ], 'Save and Create New Draft (this translation)');
+
+    $this->drupalPostForm(Url::fromRoute('entity.node.edit_form', ['node' => 1], ['language' => $this->frLanguage]), [
+      'title[0][value]' => 'fr-name--4',
+    ], 'Save and Request Review (this translation)');
+
+    $this->drupalPostForm(Url::fromRoute('entity.node.edit_form', ['node' => 1], ['language' => $this->frLanguage]), [
+      'title[0][value]' => 'fr-name--5',
+    ], 'Save and Publish (this translation)');
+
+    $expected_rows = [];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--5',
+        'status' => 'Published',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'fr-name--5',
+        'status' => 'Published',
+        'operation' => 'Edit',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--5',
+        'status' => 'Needs Review',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'fr-name--4',
+        'status' => 'Needs Review',
+        'operation' => 'Edit',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--5',
+        'status' => 'Draft',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'fr-name--3',
+        'status' => 'Draft',
+        'operation' => 'Edit',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--5',
+        'status' => 'Published',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'fr-name--2',
+        'status' => 'Published',
+        'operation' => 'Edit',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--4',
+        'status' => 'Needs Review',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'fr-name--2',
+        'status' => 'Needs Review',
+        'operation' => 'Edit',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--3',
+        'status' => 'Draft',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'fr-name--2',
+        'status' => 'Draft',
+        'operation' => 'Edit',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--1',
+        'status' => 'Published',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'fr-name--2',
+        'status' => 'Published',
+        'operation' => 'Edit',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--1',
+        'status' => 'Needs Review',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'n/a',
+        'status' => 'Not translated',
+        'operation' => 'Add',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--0',
+        'status' => 'Draft',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'n/a',
+        'status' => 'Not translated',
+        'operation' => 'Add',
+      ],
+    ];
+
+    $this->assertTranslateRevisionOverview($expected_rows);
+
+    $node = Node::load(1);
+    $this->assertEquals('en-name--5', $node->label());
+    $this->assertEquals('published', $node->get('moderation_state')->target_id);
+    $fr_node = $node->getTranslation('fr');
+    $this->assertEquals('fr-name--5', $fr_node->label());
+    $this->assertEquals('published', $fr_node->get('moderation_state')->target_id);
   }
 
 }
