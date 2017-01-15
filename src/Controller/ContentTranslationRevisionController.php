@@ -181,7 +181,8 @@ class ContentTranslationRevisionController extends ControllerBase {
     $delete_permission = (($account->hasPermission("delete $bundle revisions") || $account->hasPermission('delete all revisions') || $account->hasPermission('administer nodes')) && $entity->access('delete'));
 
     $links = [];
-    if ($revert_permission) {
+    // @Todo we don't support reverting nor deleting yet.
+    if (FALSE && $revert_permission) {
       $url = $has_translations ?
         Url::fromRoute("$entity_type_id.revision_revert_translation_confirm", [
           $entity_type_id => $entity->id(),
@@ -198,7 +199,7 @@ class ContentTranslationRevisionController extends ControllerBase {
       ];
     }
 
-    if ($delete_permission) {
+    if (FALSE && $delete_permission) {
       $links['delete'] = [
         'title' => $this->t('Delete'),
         'url' => Url::fromRoute('node.revision_delete_confirm', [
