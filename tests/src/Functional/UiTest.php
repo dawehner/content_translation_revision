@@ -167,7 +167,7 @@ class UiTest extends BrowserTestBase {
     $revision1_table = $page->find('xpath', '//div[contains(@class, "region-content")]/table/tbody/tr[2]');
     $this->assertContains('English (Original language)', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[1]')->getHtml());
     $this->assertContains('en-name--1', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[2]')->getHtml());
-    $this->assertContains('Not published', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
+    $this->assertContains('Needs Review', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
     $this->assertEquals('French', $revision1_table->find('xpath', '//table[1]/tbody/tr[2]/td[1]')->getHtml());
     $this->assertEquals('n/a', $revision1_table->find('xpath', '//table[1]/tbody/tr[2]/td[2]')->getHtml());
     $this->assertEquals('Not translated', $revision1_table->find('xpath', '//table[1]/tbody/tr[2]/td[3]')->getHtml());
@@ -175,7 +175,7 @@ class UiTest extends BrowserTestBase {
     $revision0_table = $page->find('xpath', '//div[contains(@class, "region-content")]/table/tbody/tr[4]');
     $this->assertContains('English (Original language)', $revision0_table->find('xpath', '//table[1]/tbody/tr[1]/td[1]')->getHtml());
     $this->assertContains('en-name--0', $revision0_table->find('xpath', '//table[1]/tbody/tr[1]/td[2]')->getHtml());
-    $this->assertContains('Not published', $revision0_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
+    $this->assertContains('Draft', $revision0_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
     $this->assertEquals('French', $revision0_table->find('xpath', '//table[1]/tbody/tr[2]/td[1]')->getHtml());
     $this->assertEquals('n/a', $revision0_table->find('xpath', '//table[1]/tbody/tr[2]/td[2]')->getHtml());
     $this->assertEquals('Not translated', $revision0_table->find('xpath', '//table[1]/tbody/tr[2]/td[3]')->getHtml());
@@ -202,7 +202,7 @@ class UiTest extends BrowserTestBase {
     $revision1_table = $page->find('xpath', '//div[contains(@class, "region-content")]/table/tbody/tr[4]');
     $this->assertContains('English (Original language)', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[1]')->getHtml());
     $this->assertContains('en-name--1', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[2]')->getHtml());
-    $this->assertContains('Not published', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
+    $this->assertContains('Needs Review', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
     $this->assertEquals('French', $revision1_table->find('xpath', '//table[1]/tbody/tr[2]/td[1]')->getHtml());
     $this->assertEquals('n/a', $revision1_table->find('xpath', '//table[1]/tbody/tr[2]/td[2]')->getHtml());
     $this->assertEquals('Not translated', $revision1_table->find('xpath', '//table[1]/tbody/tr[2]/td[3]')->getHtml());
@@ -210,7 +210,7 @@ class UiTest extends BrowserTestBase {
     $revision0_table = $page->find('xpath', '//div[contains(@class, "region-content")]/table/tbody/tr[6]');
     $this->assertContains('English (Original language)', $revision0_table->find('xpath', '//table[1]/tbody/tr[1]/td[1]')->getHtml());
     $this->assertContains('en-name--0', $revision0_table->find('xpath', '//table[1]/tbody/tr[1]/td[2]')->getHtml());
-    $this->assertContains('Not published', $revision0_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
+    $this->assertContains('Draft', $revision0_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
     $this->assertEquals('French', $revision0_table->find('xpath', '//table[1]/tbody/tr[2]/td[1]')->getHtml());
     $this->assertEquals('n/a', $revision0_table->find('xpath', '//table[1]/tbody/tr[2]/td[2]')->getHtml());
     $this->assertEquals('Not translated', $revision0_table->find('xpath', '//table[1]/tbody/tr[2]/td[3]')->getHtml());
@@ -251,10 +251,10 @@ class UiTest extends BrowserTestBase {
     $revision1_table = $page->find('xpath', '//div[contains(@class, "region-content")]/table/tbody/tr[2]');
     $this->assertContains('English (Original language)', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[1]')->getHtml());
     $this->assertContains('en-name--0', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[2]')->getHtml());
-    $this->assertContains('Not published', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
+    $this->assertContains('Draft', $revision1_table->find('xpath', '//table[1]/tbody/tr[1]/td[3]')->getHtml());
     $this->assertEquals('French', $revision1_table->find('xpath', '//table[1]/tbody/tr[2]/td[1]')->getHtml());
     $this->assertContains('fr-name--0', $revision1_table->find('xpath', '//table[1]/tbody/tr[2]/td[2]')->getHtml());
-    $this->assertContains('Not published', $revision1_table->find('xpath', '//table[1]/tbody/tr[2]/td[3]')->getHtml());
+    $this->assertContains('Draft', $revision1_table->find('xpath', '//table[1]/tbody/tr[2]/td[3]')->getHtml());
 
     // Move the en translation from draft to needs review.
     $this->drupalPostForm('node/1/edit', [
@@ -360,7 +360,7 @@ class UiTest extends BrowserTestBase {
       ],
       'fr' => [
         'title' => 'fr-name--4',
-        'status' => 'Not published',
+        'status' => 'Needs Review',
         'operation' => 'Edit',
       ],
     ];
@@ -372,7 +372,7 @@ class UiTest extends BrowserTestBase {
       ],
       'fr' => [
         'title' => 'fr-name--3',
-        'status' => 'Not published',
+        'status' => 'Draft',
         'operation' => 'Edit',
       ],
     ];
@@ -391,7 +391,7 @@ class UiTest extends BrowserTestBase {
     $expected_rows[] = [
       'en' => [
         'title' => 'en-name--4',
-        'status' => 'Not published',
+        'status' => 'Needs Review',
         'operation' => 'Edit',
       ],
       'fr' => [
@@ -403,7 +403,7 @@ class UiTest extends BrowserTestBase {
     $expected_rows[] = [
       'en' => [
         'title' => 'en-name--3',
-        'status' => 'Not published',
+        'status' => 'Draft',
         'operation' => 'Edit',
       ],
       'fr' => [
@@ -427,7 +427,7 @@ class UiTest extends BrowserTestBase {
     $expected_rows[] = [
       'en' => [
         'title' => 'en-name--1',
-        'status' => 'Not published',
+        'status' => 'Needs Review',
         'operation' => 'Edit',
       ],
       'fr' => [
@@ -439,7 +439,7 @@ class UiTest extends BrowserTestBase {
     $expected_rows[] = [
       'en' => [
         'title' => 'en-name--1',
-        'status' => 'Not published',
+        'status' => 'Needs Review',
         'operation' => 'Edit',
       ],
       'fr' => [
@@ -451,7 +451,7 @@ class UiTest extends BrowserTestBase {
     $expected_rows[] = [
       'en' => [
         'title' => 'en-name--0',
-        'status' => 'Not published',
+        'status' => 'Draft',
         'operation' => 'Edit',
       ],
       'fr' => [

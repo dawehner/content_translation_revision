@@ -333,12 +333,22 @@ class ContentTranslationRevisionController extends ControllerBase {
         if (isset($links['edit'])) {
           $links['edit']['title'] = $this->t('Edit');
         }
+
+        if ($translation->hasField('moderation_state')) {
+          $status_label = $translation->get('moderation_state')->entity->label();
+        }
+        elseif ($translation->isPublished()) {
+          $status_label = t('Published');
+        }
+        else {
+          $status_label = t('Not published');
+        }
         $status = [
           'data' => [
             '#type' => 'inline_template',
-            '#template' => '<span class="status">{% if status %}{{ "Published"|t }}{% else %}{{ "Not published"|t }}{% endif %}</span>{% if outdated %} <span class="marker">{{ "outdated"|t }}</span>{% endif %}',
+            '#template' => '<span class="status">{{ status_label }}</span>{% if outdated %} <span class="marker">{{ "outdated"|t }}</span>{% endif %}',
             '#context' => [
-              'status' => $metadata->isPublished(),
+              'status_label' => $status_label,
               'outdated' => $metadata->isOutdated(),
             ],
           ],
