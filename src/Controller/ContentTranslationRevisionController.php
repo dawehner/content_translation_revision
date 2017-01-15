@@ -141,9 +141,9 @@ class ContentTranslationRevisionController extends ControllerBase {
 
     $rows = [];
     foreach (array_keys($revision_rows) as $revision_id) {
-      $rows[] = $revision_rows[$revision_id];
+      $rows[$revision_id . '--header'] = $revision_rows[$revision_id];
       // @todo Add colspan properly.
-      $rows[] = [
+      $rows[$revision_id . '--translations'] = [
         ['colspan' => 2, 'data' => $translation_tables[$revision_id]],
       ];
     }
