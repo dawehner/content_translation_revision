@@ -674,4 +674,89 @@ class UiTest extends BrowserTestBase {
     $this->assertEquals('published', $fr_node->get('moderation_state')->target_id);
   }
 
+  /**
+   * Tests the UI when translated after review and then edited later with sync enabled.
+   */
+  public function testTranslationWorkflowWithSyncEnabledAndTranslation() {
+    \Drupal::configFactory()
+      ->getEditable('content_translation_revision.settings')
+      ->set('sync_moderation_state_translations', TRUE)
+      ->save();
+
+    $this->drupalGet('node/add/article');
+    $this->drupalPostForm('node/add/article', [
+      'title[0][value]' => 'en-name--0',
+    ], 'Save and Create New Draft');
+
+    $add_translation_url = Url::fromRoute('entity.node.content_translation_revision_add', [
+      'node' => 1,
+      'node_revision' => 1,
+      'source' => 'en',
+      'target' => 'fr',
+    ], ['language' => $this->frLanguage]);
+    $this->drupalPostForm($add_translation_url, [
+      'title[0][value]' => 'fr-name--0',
+    ], 'Save and Create New Draft (this translation)');
+
+    $this->drupalPostForm('node/1/edit', [
+      'title[0][value]' => 'en-name--1',
+    ], 'Save and Request Review (this translation)');
+
+    $this->drupalPostForm('node/1/edit', [
+      'title[0][value]' => 'en-name--2',
+    ], 'Save and Publish (this translation)');
+
+    $expected_rows = [];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--2',
+        'status' => 'Published',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'fr-name--0',
+        'status' => 'Published',
+        'operation' => 'Edit',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--1',
+        'status' => 'Needs Review',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'fr-name--0',
+        'status' => 'Needs Review',
+        'operation' => 'Edit',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--0',
+        'status' => 'Draft',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'fr-name--0',
+        'status' => 'Draft',
+        'operation' => 'Edit',
+      ],
+    ];
+    $expected_rows[] = [
+      'en' => [
+        'title' => 'en-name--0',
+        'status' => 'Draft',
+        'operation' => 'Edit',
+      ],
+      'fr' => [
+        'title' => 'n/a',
+        'status' => 'Not translated',
+        'operation' => 'Add',
+      ],
+    ];
+
+    $this->assertTranslateRevisionOverview($expected_rows);
+  }
+
 }
