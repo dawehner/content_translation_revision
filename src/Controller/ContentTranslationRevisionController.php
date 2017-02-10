@@ -227,6 +227,7 @@ class ContentTranslationRevisionController extends ControllerBase {
   protected function singleTranslationTable(ContentEntityInterface $revision) {
     $entity_type = $revision->getEntityType();
     $entity_type_id = $revision->getEntityTypeId();
+    /** @var \Drupal\Core\Entity\ContentEntityInterface $entity */
     $entity = $this->entityTypeManager()
       ->getStorage($entity_type_id)
       ->load($revision->id());
@@ -244,9 +245,12 @@ class ContentTranslationRevisionController extends ControllerBase {
 
     // Show source-language column if there are non-original source langcodes.
     $additional_source_langcodes = array_filter(array_keys($translations), function ($langcode) use ($entity, $original, $manager) {
-      $source = $manager->getTranslationMetadata($entity->getTranslation($langcode))
-        ->getSource();
-      return $source != $original && $source != LanguageInterface::LANGCODE_NOT_SPECIFIED;
+      // There might be source translations missing.
+      if ($entity->hasTranslation($langcode)) {
+        $source = $manager->getTranslationMetadata($entity->getTranslation($langcode))
+          ->getSource();
+        return $source != $original && $source != LanguageInterface::LANGCODE_NOT_SPECIFIED;
+      }
     });
     $show_source_column = !empty($additional_source_langcodes);
 
