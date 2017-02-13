@@ -310,8 +310,7 @@ class ContentTranslationRevisionController extends ControllerBase {
         $label = $revision->getTranslation($langcode)->label();
         $link = isset($links->links[$langcode]['url']) ? $links->links[$langcode] : ['url' => $revision->toUrl()];
         if (!empty($link['url'])) {
-          $link['url']->setOption('language', $language);
-          $row_title = $this->l($label, $link['url']);
+          $row_title = $this->l($label, $revision->getTranslation($langcode)->toUrl('revision', ['language' => $revision->language()]));
         }
 
         if (empty($link['url'])) {
