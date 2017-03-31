@@ -3,7 +3,6 @@
 /**
  * @file
  */
-use Drupal\content_translation_revision\NodeModerationHandler;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\FieldableEntityInterface;
 use Drupal\node\NodeInterface;
@@ -20,11 +19,11 @@ function content_translation_revision_entity_presave(EntityInterface $entity) {
     return;
   }
 
-  if (!$entity instanceof NodeInterface) {
+  if (!$entity instanceof FieldableEntityInterface) {
     return;
   }
 
-  if (!$entity instanceof FieldableEntityInterface) {
+  if (!$entity instanceof NodeInterface) {
     return;
   }
 
@@ -33,10 +32,16 @@ function content_translation_revision_entity_presave(EntityInterface $entity) {
   }
 
   $new_moderation_state = $entity->get('moderation_state')->target_id;
+  $new_moderation_state_entity = \Drupal\workbench_moderation\Entity\ModerationState::load($new_moderation_state);
+
   // Change to the new moderation state across all translations.
   foreach ($entity->getTranslationLanguages(TRUE) as $language) {
     if ($entity->hasTranslation($language->getId())) {
       $entity->getTranslation($language->getId())->get('moderation_state')->target_id = $new_moderation_state;
+
+      if ($new_moderation_state_entity->isPublishedState()) {
+        $entity->getTranslation($language->getId())->setPublished(TRUE);
+      }
     }
   }
 }
