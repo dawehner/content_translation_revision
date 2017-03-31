@@ -1,5 +1,3 @@
-sync_moderation_state_translations: true
-
 content_translation_revision.settings:
   type: config_object
   label: 'CTR settings'
